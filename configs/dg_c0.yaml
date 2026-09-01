@@ -1,0 +1,50 @@
+# FACTORIAL SCREEN -- C0: baseline (control arm)
+#
+# Identical to configs/convnext_b_384.yaml except for out_dir. This is the
+# control against which C1, C2 and C3 are each a single change, and every arm
+# uses the same seeds and the same splits so the comparison is PAIRED.
+#
+# The 10 LOCO runs of this configuration already exist in runs/noise_floor_b,
+# produced before the domain-generalisation code was written. They are reused
+# rather than repeated, and scripts/20_dg_regression.py proves that reuse is
+# legitimate by retraining one of them under the new code and checking the
+# validation logits are bit-identical.
+
+seed: 0
+repeat: 0
+fold: 0
+
+image_size: 384
+crop_mode: inscribed_square
+cache_size: 431
+precision: bf16
+
+batch_size: 32
+num_workers: 8
+sampler: weighted        # inverse class frequency, with replacement
+
+arch: convnext_base.fb_in1k
+pretrained: true
+grad_checkpointing: false
+
+epochs: 30
+lr: 1.0e-4
+weight_decay: 0.05
+warmup_frac: 0.03
+deterministic: true
+
+aug:
+  hflip: true
+  hflip_p: 0.5
+  normalize_imagenet: true
+  random_black_boxes: true
+  black_boxes_p: 0.5
+  photometric: false
+  optical: false
+  sensor: false
+  compression: false
+
+manifest: manifests/rare25_folds_v2.csv
+image_root: 00_source
+redaction_stats: manifests/redaction_check.csv
+out_dir: runs/dg_c0

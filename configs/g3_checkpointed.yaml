@@ -1,0 +1,110 @@
+# G3 -- checkpointed retrain, 2026-08-05 overnight chain.
+#
+# configs/g3_rn50_gastronet.yaml VERBATIM, save_checkpoint: true and out_dir
+# changed only. Runs ONLY if G3 passed Rule 2 (control = A4) on the LOCO
+# figures from scripts/32_g3_loco.py -- an arm that does not clear that gate
+# does not earn the GPU-hours or the disk for a checkpointed retrain. Logits
+# are asserted bit-identical against the existing runs/g3_rn50_gastronet
+# canonical parquets (scripts/39_bit_identity_check.py); a mismatch is a HALT.
+
+seed: 0
+repeat: 0
+fold: 0
+
+image_size: 384
+crop_mode: inscribed_square
+cache_size: 431
+precision: bf16
+
+batch_size: 90    # VRAM-probed override the sweep driver applied at runtime
+                  # for the original screening run (logs/batch_size_g3_rn50_gastronet,
+                  # gastronet.md: "Batch size used: 90 (probed, not assumed)") --
+                  # NOT this file's original literal 32. Discovered 2026-08-08:
+                  # a checkpointed retrain at batch_size=32 produces a genuinely
+                  # different model (different steps/epoch, different LR-schedule
+                  # granularity), not a resume/corruption artefact -- bit-identity
+                  # against runs/g3_rn50_gastronet failed with max|diff|=12.8 on
+                  # logits, not numerical noise. This value makes the file's own
+                  # header claim ("VERBATIM, save_checkpoint and out_dir changed
+                  # only") actually true.
+num_workers: 8
+sampler: balanced_centre_class   # COMPONENT A
+
+arch: resnet50
+pretrained: false            # local checkpoint replaces timm hub weights
+init_weights: weights/RN50_GastroNet-5M_DINOv1.pth
+grad_checkpointing: false
+
+epochs: 30
+lr: 1.0e-4
+weight_decay: 0.05
+warmup_frac: 0.03
+deterministic: true
+
+save_checkpoint: true            # the entire reason this file exists
+
+aug:
+  # --- GLOBAL MAGNITUDE MULTIPLIER (COMPONENT B, at A2's magnitude) ---
+  magnitude_scale: 0.33
+
+  # --- baseline, as A0 ---
+  hflip: true
+  hflip_p: 0.5
+  normalize_imagenet: true
+  random_black_boxes: true
+  black_boxes_p: 0.5
+
+  # --- master gates: the treatment ---
+  photometric: true
+  optical: true
+  sensor: true
+  compression: true
+
+  # --- colour ---
+  gamma_p: 0.5
+  gamma_m: 0.50              # shared gamma, log-uniform over [1/1.5, 1.5]
+  gamma_channel_m: 0.08      # narrow per-channel deviation on top
+  white_balance_p: 0.5
+  white_balance_m: 0.25      # colour-temperature axis (R up / B down)
+  white_balance_tint_frac: 0.34
+  hue_sat_p: 0.5
+  hue_m: 10.0                # degrees
+  sat_m: 0.45
+
+  # --- illumination ---
+  vignette_p: 0.5
+  vignette_m: 0.55           # corner brightness removed
+  linear_gradient_p: 0.5
+  linear_gradient_m: 0.35
+  radial_gradient_p: 0.3
+  radial_gradient_m: 0.35
+  specular_p: 0.4
+  specular_m: 0.060          # blob radius as a fraction of the frame
+
+  # --- optical ---
+  motion_blur_p: 0.3
+  motion_blur_m: 21.0        # max odd kernel length, px
+  defocus_p: 0.3
+  defocus_m: 3.5             # max disc-PSF radius, px
+  distortion_p: 0.4
+  distortion_m: 0.25         # |k1|, barrel and pincushion
+  sharpen_p: 0.3
+  sharpen_m: 0.85            # max unsharp alpha
+
+  # --- sensor ---
+  gaussian_noise_p: 0.4
+  gaussian_noise_m: 22.0     # max sigma, 0-255 units
+  poisson_noise_p: 0.3
+  poisson_noise_m: 20.0      # photons at full white; SMALLER = noisier
+  downsample_p: 0.35
+  downsample_m: 0.35         # min scale factor before restoring the size
+
+  # --- compression ---
+  jpeg_p: 0.5
+  jpeg_q_min: 30
+  jpeg_q_max: 95
+
+manifest: manifests/rare25_folds_v2.csv
+image_root: 00_source
+redaction_stats: manifests/redaction_check.csv
+out_dir: runs/gastronet_g3
