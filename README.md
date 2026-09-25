@@ -26,7 +26,7 @@ including in code comments and docstrings.
 
 ## Hardware used
 
-- GPU: 1x NVIDIA GeForce RTX 5060 Ti, 16 GB VRAM (Blackwell, sm_120).
+- GPU: 1x 16 GB consumer GPU (Blackwell, sm_120).
   Batch sizes throughout are VRAM-probed per config, not assumed --
   regenerate with `scripts/vram_probe.py`.
 - The inference container also targets NVIDIA T4 (sm_75) and A10G
